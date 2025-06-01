@@ -4,16 +4,14 @@
 {% block extra_css %}
 <style>
     /* General Body Styles for centering content */
-   
-    .mainn{
+    
+    .mainc{
     display: flex;
-    justify-content: center; /* Centers horizontally */
+    justify-content: center;
     align-items: center;
-    justify-items: center;}
+    }
     /* Container for the main content to keep it centered */
     .containerc {
-        padding-left: 300px;
-        align-self: center;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -22,7 +20,7 @@
         padding: 20px;
         background-color: #ffffff; /* White background for the container */
         border-radius: 15px;
-        
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
         margin-top: 40px;
         flex-grow: 1;
         display: flex;
@@ -39,6 +37,7 @@
         margin-bottom: 20px;
         text-align: center;
         padding-top: 10px;
+        font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
     }
 
     /* Chat messages display area */
@@ -56,19 +55,19 @@
     }
 
     /* Individual message styles */
-    .messagec {
+    .message {
         margin-bottom: 10px;
         padding: 8px 12px;
         border-radius: 15px;
         max-width: 80%;
         word-wrap: break-word;
     }
-    .message.userc {
+    .message.user {
         background-color: #007bff;
         color: white;
         align-self: flex-end;
     }
-    .message.botc {
+    .message.bot {
         background-color: #e5e5ea;
         color: #333;
         align-self: flex-start;
@@ -128,7 +127,7 @@
 
     /* Responsive adjustments */
     @media (max-width: 768px) {
-        .main-titlec {
+        .main-titlec{
             font-size: 24px;
             margin-bottom: 30px;
         }
@@ -168,7 +167,7 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="mainn">
+<div class ="mainc">
 <div class="containerc">
     <h1 class="main-titlec">Assistant de dénomination</h1>
     <div class="chat-messagesc" id="chatMessagesc"></div>
@@ -176,8 +175,7 @@
         <input type="text" id="chatbotInputc" placeholder="Quel nom d'entreprise proposez-vous?">
         <button class="arrow-buttonc" onclick="sendMessage()">↑</button>
     </div>
-</div>
-</div>
+</div></div>
 {% endblock %}
 {% block extra_js %}
 <script>
@@ -186,20 +184,58 @@
 
     function appendMessage(text, sender) {
         const messageDiv = document.createElement('div');
-        messageDiv.classList.add('messagec', sender);
+        messageDiv.classList.add('message', sender);
         messageDiv.textContent = text;
         chatMessages.appendChild(messageDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
-    function sendMessage() {
+    async function sendMessage() {
         const message = chatbotInput.value.trim();
         if (message === '') return;
         appendMessage(message, 'user');
         chatbotInput.value = '';
-        setTimeout(() => {
-            appendMessage("You said: " + message, 'bot');
-        }, 1000);
+
+        try {
+            const response = await fetch('/api/chatbot/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({ message: message }),
+            });
+            if (response.ok) {
+                const data = await response.json();
+                // Fix for [object Object] display: convert reply to string if object
+                let replyText = data.reply;
+                if (typeof replyText === 'object') {
+                    replyText = JSON.stringify(replyText);
+                }
+                appendMessage(replyText, 'bot');
+            } else {
+                appendMessage('Error: Unable to get response from chatbot.', 'bot');
+            }
+        } catch (error) {
+            appendMessage('Error: ' + error.message, 'bot');
+        }
+    }
+
+    // Function to get CSRF token from cookies
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                // Does this cookie string begin with the name we want?
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
     }
 
     chatbotInput.addEventListener('keypress', function(event) {
@@ -207,6 +243,6 @@
             event.preventDefault();
             sendMessage();
         }
-    });
+    });s
 </script>
 {% endblock %}
